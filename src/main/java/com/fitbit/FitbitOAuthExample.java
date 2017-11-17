@@ -18,18 +18,24 @@ package com.fitbit;
 import com.fitbit.model.Activity;
 import com.fitbit.model.LifetimeActivity;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.security.oauth2.client.EnableOAuth2Sso;
+import org.springframework.context.annotation.Bean;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.oauth2.client.OAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
+import org.springframework.security.oauth2.client.token.grant.code.AuthorizationCodeResourceDetails;
+import org.springframework.security.oauth2.common.AuthenticationScheme;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
+import java.util.Arrays;
 
 @SpringBootApplication
 @EnableOAuth2Sso
@@ -38,6 +44,10 @@ import java.security.Principal;
 public class FitbitOAuthExample extends WebSecurityConfigurerAdapter {
 
 	@Autowired
+	OAuth2ClientContext oauth2ClientContext;
+
+	@Autowired
+	@Qualifier("fitbitTemplate")
 	OAuth2RestTemplate fitbitOAuthRestTemplate;
 
 	@Value("${fitbit.api.resource.activitiesUri}")
@@ -67,6 +77,26 @@ public class FitbitOAuthExample extends WebSecurityConfigurerAdapter {
 	protected void configure(HttpSecurity http) throws Exception {
 		http.antMatcher("/**").authorizeRequests().antMatchers("/", "/login**", "/webjars/**").permitAll().anyRequest()
 				.authenticated();
+	}
+
+	@Bean
+	public AuthorizationCodeResourceDetails fitbit(){
+		AuthorizationCodeResourceDetails details = new AuthorizationCodeResourceDetails();
+		details.setClientId("YOUR_CLIENT_ID_HERE");
+		details.setClientSecret("YOUR_CLIENT_SECRET_HERE");
+		details.setAccessTokenUri("https://api.fitbit.com/oauth2/token");
+		details.setUserAuthorizationUri("https://www.fitbit.com/oauth2/authorize");
+		details.setTokenName("oauth_token");
+		details.setAuthenticationScheme(AuthenticationScheme.header);
+		details.setClientAuthenticationScheme(AuthenticationScheme.header);
+		details.setScope(Arrays.asList("activity", "heartrate", "location", "nutrition", "profile", "settings", "sleep", "social", "weight"));
+
+		return details;
+	}
+
+	@Bean
+	public OAuth2RestTemplate fitbitTemplate(){
+		return new OAuth2RestTemplate(fitbit(), oauth2ClientContext);
 	}
 
 	public static void main(String[] args) {
